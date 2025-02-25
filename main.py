@@ -8,6 +8,21 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from faker import Faker
 usernamefile = "email_usernames.txt"
+import os
+import subprocess
+
+# Run git pull to update the script
+def update_script():
+    try:
+        result = subprocess.run(["git", "pull"], check=True, capture_output=True, text=True)
+        print(result.stdout)  # Show output of git pull
+        print("Repository updated successfully.")
+    except subprocess.CalledProcessError as e:
+        print("Failed to update repository. Make sure Git is installed and configured.")
+        print(e.stderr)
+
+# Update the script before executing anything else
+update_script()
 
 def get_username(email):
     """Searches for the username linked to the email."""
