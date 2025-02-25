@@ -7,6 +7,19 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from faker import Faker
+usernamefile = "email_usernames.txt"
+
+def get_username(email):
+    """Searches for the username linked to the email."""
+    if os.path.exists(usernamefile):
+        with open(usernamefile, "r", encoding="utf-8") as file:
+            for line in file:
+                saved_email, saved_username = line.strip().split("|")
+                if saved_email == email:
+                    return saved_username  # Return username if found
+    return "Unknown"  # Return default if not found
+
+
 def random_english_firstname():
     european_locales = ['fr_FR', 'de_DE', 'it_IT', 'es_ES', 'nl_NL', 'ru_RU', 'pl_PL', 'sv_SE', 'da_DK']
     fake = Faker(european_locales)
@@ -114,7 +127,7 @@ def generate_old_android_ua():
     )
 
 from selenium.common.exceptions import NoSuchElementException
-def create_33mail(driver):
+def create_33mail(driver,usern):
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
@@ -164,10 +177,10 @@ def create_33mail(driver):
             uid = session.cookies.get("c_user")
             
         else:
-            print("UID not found")
+            pass
             return
     else:
-        print("No form found in the response.")
+        pass
     
     change_email_url = "https://m.facebook.com/changeemail/"
     email_response = session.get(change_email_url, headers=headers)
@@ -181,7 +194,7 @@ def create_33mail(driver):
         for inp in inputs:
             if inp.has_attr("name") and inp["name"] not in data:
                 data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
-        data["new"] = f"{username}@hania.protonsemail.com"
+        data["new"] = f"{username}@{usern}.protonsemail.com"
         data["submit"] = "Add"
         submit_response = session.post(action_url, headers=headers, data=data)
         driver.implicitly_wait(6)
@@ -208,19 +221,21 @@ def create_33mail(driver):
                     select_all_checkbox = driver.find_element(By.XPATH, '//input[@id="idSelectAll"]')
                     select_all_checkbox.click()
                 except NoSuchElementException:
-                    print("Select All checkbox not found")
+                    pass
                 time.sleep(3)
                 try:
                     # Check if the button exists and click it
                     button = driver.find_element(By.XPATH, '//button[@data-testid="toolbar:movetotrash"]')
                     button.click()
                 except NoSuchElementException:
-                    print("Button not found")
+                    pass
         except NoSuchElementException:
-            print("Message container not found")
-        print(f"{uid}|{password}|{username}")
-        email=f"{username}@hania.protonsemail.com"
-        file_path = "33mail.txt"
+            pass
+        print(f"{uid}|{password}")
+        email=f"{username}@{usern}.protonsemail.com"
+        storage_dir = "/sdcard"  # Use "/data/data/com.termux/files/home/" for internal storage
+        file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
+
         if not os.path.exists(file_path):
             open(file_path, "w").close()
 
@@ -232,7 +247,7 @@ def create_33mail(driver):
             file.write(credentials)
 
     else:
-        print("No email form found.")
+        pass
     
     return
 CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")  # Store in $HOME
@@ -274,14 +289,9 @@ def get_credentials():
 
     return email_address, password_email
 
-def login_and_process(email_address, password_email):
+def login_and_process(driver,email_address, password_email):
     """Login to ProtonMail and process emails."""
-    options = webdriver.ChromeOptions()
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--headless=new")
 
-    driver = webdriver.Chrome(options=options)
     driver.get("https://account.proton.me/login")
     driver.implicitly_wait(80)
 
@@ -311,7 +321,7 @@ def login_and_process(email_address, password_email):
                 select_all_checkbox = driver.find_element(By.XPATH, '//input[@id="idSelectAll"]')
                 select_all_checkbox.click()
             except NoSuchElementException:
-                print("Select All checkbox not found")
+                pass
                 time.sleep(3)
 
             try:
@@ -319,16 +329,39 @@ def login_and_process(email_address, password_email):
                 button = driver.find_element(By.XPATH, '//button[@data-testid="toolbar:movetotrash"]')
                 button.click()
             except NoSuchElementException:
-                print("Button not found")
+                pass
     except NoSuchElementException:
-        print("Message container not found")
-
-    # Call create_33mail function multiple times
-    for i in range(1000):
-        create_33mail(driver)
-
-    driver.quit()
-
+        pass
 if __name__ == "__main__":
-    email_address, password_email = get_credentials()
-    login_and_process(email_address, password_email)
+    try:
+            
+        email_address, password_email = get_credentials()
+        options = webdriver.ChromeOptions()
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--headless=new")
+
+        driver = webdriver.Chrome(options=options)
+        login_and_process(driver, email_address, password_email)
+
+        while True:
+            try:
+                max_create = int(input("How many 33mail addresses do you want to create? (Max: 10, Enter 0 to exit): "))
+                if max_create == 0:
+                    print("Exiting...")
+                    break
+                elif 1 <= max_create <= 10:
+                    for i in range(max_create):
+                        usern = get_username(email_address)
+                        create_33mail(driver, usern)
+                else:
+                    print("Invalid input. Please enter a number between 1 and 10.")
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
+    except:
+        if driver:
+            driver.quit()
+    finally:
+        if driver:
+            driver.quit()
+        exit()
