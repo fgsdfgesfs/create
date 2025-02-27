@@ -359,7 +359,7 @@ if __name__ == "__main__":
     try:
 
         email_address, password_email = get_credentials()
-        print(email_address)
+        
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
