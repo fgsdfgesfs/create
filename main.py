@@ -366,6 +366,7 @@ if __name__ == "__main__":
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--headless=new")
         options.add_argument("--disable-notifications")
+        options.add_argument("--disable-blink-features=AutomationControlled")
 
         driver = webdriver.Chrome(options=options)
         login_and_process(driver, email_address, password_email)
