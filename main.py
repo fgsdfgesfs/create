@@ -260,8 +260,8 @@ def generate_old_android_ua():
     return ua
 
 from selenium.common.exceptions import NoSuchElementException
-def create_33mail(usern):
-    print(f"\n[+] Starting 33mail creation process for {usern}")
+def create_fbunconfirmed(usern):
+    print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
@@ -385,7 +385,7 @@ if __name__ == "__main__":
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
                         usern = get_username(EMAIL)
-                        create_33mail(usern)
+                        create_fbunconfirmed(usern)
                     print("\n[+] Batch creation completed")
                 else:
                     print("[-] Invalid input (1-10 only)")
