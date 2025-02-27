@@ -23,7 +23,7 @@ def update_script():
         print("[-] Failed to update repository: " + e.stderr.replace('\n', ' '))
 
 # Update the script before executing anything else
-update_script()
+#update_script()
 
 def get_username(email):
     """Searches for the username linked to the email."""
@@ -121,11 +121,13 @@ def delete_email(token, email_id):
         return False
 
 def extract_code(text):
-    pattern = r'\b(?:FB-)?(\d{4,6})\b'  # Match 4-6 digit codes with or without "FB-"
+    # Match "FB-" followed by 4-6 digits, capturing the digits
+    pattern = r'FB-(\d{4,6})'
     matches = re.findall(pattern, text)
-    return matches[-1] if matches else None  # Return the last valid match
+    # Return the first match (or None if no matches)
+    return matches[0] if matches else None
 
-def wait_for_email(timeout=120):
+def wait_for_email(timeout=36):
     token = get_token()
     if not token:
         return None
@@ -154,7 +156,7 @@ def wait_for_email(timeout=120):
             else:
                 print("[-] No code found in email, waiting for another...          ")
 
-        time.sleep(10)  # Slightly longer delay to prevent API caching issues
+        time.sleep(6)  # Slightly longer delay to prevent API caching issues
 
     print("[-] Email timeout reached          ")
     return None
@@ -360,22 +362,24 @@ def create_fbunconfirmed(usern):
             print("[-] No confirmation code received          ")
             return
         
-        print(f"[+] Account created: {uid}|{password}")
-        email=f"{username}@{usern}.protonsemail.com"
-        storage_dir = "/sdcard"
-        file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
 
-        if not os.path.exists(file_path):
-            open(file_path, "w").close()
-
-        credentials = f"{uid}|{password}|{confirmation_code}|{email}\n"
-
-        with open(file_path, "a") as file:
-            file.write(credentials)
-        print(f"[+] Saved credentials to {file_path}")
     else:
         print("[-] Email change form not found          ")
+
+    print(f"[+] Account created: {uid}|{password}")
     
+    email=f"{username}@{usern}.protonsemail.com"
+    storage_dir = "/sdcard"
+    file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
+
+    if not os.path.exists(file_path):
+        open(file_path, "w").close()
+
+    credentials = f"{uid}|{password}|{confirmation_code}|{email}\n"
+
+    with open(file_path, "a") as file:
+        file.write(credentials)
+    print(f"[+] Saved credentials to {file_path}")
     return
 
 
@@ -393,7 +397,7 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                        usern = get_username(EMAIL)
+                        usern = "hussnain" #get_username(EMAIL)
                         create_fbunconfirmed(usern)
                     print("\n[+] Batch creation completed")
                 else:
