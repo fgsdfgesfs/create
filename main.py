@@ -22,7 +22,7 @@ def update_script():
         print(e.stderr)
 
 # Update the script before executing anything else
-update_script()
+#update_script()
 
 def get_username(email):
     """Searches for the username linked to the email."""
@@ -199,10 +199,12 @@ def create_33mail(driver,usern):
     
     change_email_url = "https://m.facebook.com/changeemail/"
     email_response = session.get(change_email_url, headers=headers)
+    
     soup = BeautifulSoup(email_response.text, "html.parser")
     form = soup.find("form")
     
     if form:
+
         action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
         inputs = form.find_all("input")
         data = {}
@@ -211,12 +213,19 @@ def create_33mail(driver,usern):
                 data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
         data["new"] = f"{username}@{usern}.protonsemail.com"
         data["submit"] = "Add"
+        
         submit_response = session.post(action_url, headers=headers, data=data)
-        driver.implicitly_wait(6)
+        print(usern)
+        driver.implicitly_wait(10)
         for i in range(15):
             if i==12:
                 return
             try:
+                random_filename = ''.join(random.choices(string.ascii_letters + string.digits, k=10)) + ".png"
+                screenshot_path = f"/storage/emulated/0/{random_filename}"  # Save in SD card root
+                driver.save_screenshot(screenshot_path)
+
+
                 driver.find_element(By.XPATH, '//a[@title="Inbox"]').click()
                 code_text = driver.find_element(By.XPATH, '//span[contains(text(),"code")]')
                 code_string = code_text.text
@@ -349,12 +358,14 @@ def login_and_process(driver,email_address, password_email):
         pass
 if __name__ == "__main__":
     try:
-            
+
         email_address, password_email = get_credentials()
+        print(email_address)
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--headless=new")
+        options.add_argument("--disable-notifications")
 
         driver = webdriver.Chrome(options=options)
         login_and_process(driver, email_address, password_email)
@@ -368,6 +379,7 @@ if __name__ == "__main__":
                 elif 1 <= max_create <= 10:
                     for i in range(max_create):
                         usern = get_username(email_address)
+                        print(usern)
                         create_33mail(driver, usern)
                 else:
                     print("Invalid input. Please enter a number between 1 and 10.")
