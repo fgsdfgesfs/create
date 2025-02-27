@@ -327,7 +327,7 @@ def login_and_process(driver,email_address, password_email):
     
     time.sleep(1)
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
-    time.sleep(25)
+    time.sleep(30)
 
     # Navigate to inbox
     driver.get("https://mail.proton.me/u/6/inbox")
@@ -380,7 +380,7 @@ if __name__ == "__main__":
                 elif 1 <= max_create <= 10:
                     for i in range(max_create):
                         usern = get_username(email_address)
-                        print(usern)
+                        
                         create_33mail(driver, usern)
                 else:
                     print("Invalid input. Please enter a number between 1 and 10.")
