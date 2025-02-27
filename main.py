@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import os
 import random
 import re
@@ -336,38 +337,41 @@ def create_fbunconfirmed(usern):
         return
     
     print("[*] Attempting email change...")
-    change_email_url = "https://m.facebook.com/changeemail/"
-    email_response = session.get(change_email_url, headers=headers)
-    
-    soup = BeautifulSoup(email_response.text, "html.parser")
-    form = soup.find("form")
-    
-    if form:
-        print("[*] Found email change form")
-        action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
-        inputs = form.find_all("input")
-        data = {}
-        for inp in inputs:
-            if inp.has_attr("name") and inp["name"] not in data:
-                data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
-        data["new"] = f"{username}@{usern}.protonsemail.com"
-        data["submit"] = "Add"
+    for i in range(10):
+        change_email_url = "https://m.facebook.com/changeemail/"
+        email_response = session.get(change_email_url, headers=headers)
         
-        print("[*] Submitting email change request...")
-        submit_response = session.post(action_url, headers=headers, data=data)
-        print("[*] Waiting for confirmation email...")
-        confirmation_code = wait_for_email()
+        soup = BeautifulSoup(email_response.text, "html.parser")
+        form = soup.find("form")
         
-        if not confirmation_code:
-            print("[-] No confirmation code received          ")
-            return
-        
-
-    else:
-        print("[-] Email change form not found          ")
+        if form:
+            print("[*] Found email change form")
+            action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
+            inputs = form.find_all("input")
+            data = {}
+            for inp in inputs:
+                if inp.has_attr("name") and inp["name"] not in data:
+                    data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
+            data["new"] = f"{username}@{usern}.protonsemail.com"
+            data["submit"] = "Add"
+            
+            print("[*] Submitting email change request...")
+            submit_response = session.post(action_url, headers=headers, data=data)
+            print("[*] Waiting for confirmation email...")
+            confirmation_code = wait_for_email()
+            
+            if not confirmation_code:
+                print("[-] No confirmation code received          ")
+                continue
+            
+            if confirmation_code:
+                break
+        else:
+            print("[-] Email change form not found          ")
 
     print(f"[+] Account created: {uid}|{password}")
-    
+    cookies = session.cookies.get_dict()  # Convert to dictionary
+    print(f"cookies = {json.dumps(cookies, indent=4)}")
     email=f"{username}@{usern}.protonsemail.com"
     storage_dir = "/sdcard"
     file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
