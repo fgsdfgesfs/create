@@ -121,9 +121,9 @@ def delete_email(token, email_id):
         return False
 
 def extract_code(text):
-    pattern = r'\b(?:FB-)?(\d{4,6})\b'
-    match = re.search(pattern, text)
-    return match.group(1) if match else None
+    pattern = r'\b(?:FB-)?(\d{4,6})\b'  # Match 4-6 digit codes with or without "FB-"
+    matches = re.findall(pattern, text)
+    return matches[-1] if matches else None  # Return the last valid match
 
 def wait_for_email(timeout=120):
     token = get_token()
