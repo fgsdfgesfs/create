@@ -22,7 +22,7 @@ def update_script():
         print(e.stderr)
 
 # Update the script before executing anything else
-#update_script()
+update_script()
 
 def get_username(email):
     """Searches for the username linked to the email."""
@@ -215,7 +215,6 @@ def create_33mail(driver,usern):
         data["submit"] = "Add"
         
         submit_response = session.post(action_url, headers=headers, data=data)
-        print(usern)
         driver.implicitly_wait(10)
         for i in range(15):
             if i==12:
@@ -328,7 +327,7 @@ def login_and_process(driver,email_address, password_email):
     
     time.sleep(1)
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
-    time.sleep(12)
+    time.sleep(25)
 
     # Navigate to inbox
     driver.get("https://mail.proton.me/u/6/inbox")
@@ -366,6 +365,7 @@ if __name__ == "__main__":
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--headless=new")
         options.add_argument("--disable-notifications")
+    #    options.add_argument("--remote-debugging-port=9222") 
         options.add_argument("--disable-blink-features=AutomationControlled")
 
         driver = webdriver.Chrome(options=options)
