@@ -78,15 +78,14 @@ def get_credentials():
         save_credentials(email_address, password_email)
 
     return email_address, password_email
-
-EMAIL, PASSWORD = get_credentials()
 import time
 import re
 import requests
 
+EMAIL, PASSWORD = get_credentials()
+
 
 BASE_URL = "https://api.mail.gw"
-
 def get_token():
     print("[*] Authenticating with mail server...", end='\r')
     response = requests.post(f"{BASE_URL}/token", json={"address": EMAIL, "password": PASSWORD})
@@ -113,7 +112,13 @@ def get_email_content(token, email_id):
 
 def delete_email(token, email_id):
     headers = {"Authorization": f"Bearer {token}"}
-    requests.delete(f"{BASE_URL}/messages/{email_id}", headers=headers)
+    response = requests.delete(f"{BASE_URL}/messages/{email_id}", headers=headers)
+    if response.status_code == 204:
+        print(f"🗑️ Email {email_id} deleted successfully.")
+        return True
+    else:
+        print(f"[-] Failed to delete email {email_id}: {response.text}")
+        return False
 
 def extract_code(text):
     pattern = r'\b(?:FB-)?(\d{4,6})\b'
@@ -125,7 +130,7 @@ def wait_for_email(timeout=120):
     if not token:
         return None
 
-    last_email_id = None
+    deleted_emails = set()  # Track deleted emails
     start_time = time.time()
     check_count = 0
 
@@ -133,23 +138,27 @@ def wait_for_email(timeout=120):
         check_count += 1
         print(f"[*] Checking for emails ({check_count})...", end='\r')
         email = get_latest_email(token)
-        if email and email["id"] != last_email_id:
+        
+        if email and email["id"] not in deleted_emails:
             print(f"[+] New email received (ID: {email['id']})          ")
             content = get_email_content(token, email["id"])
+            print(content)
             code = extract_code(content) if content else None
-            delete_email(token, email["id"])
+
+            if delete_email(token, email["id"]):  # Ensure email deletion before proceeding
+                deleted_emails.add(email["id"])
 
             if code:
                 print(f"[+] Verification code found: {code}")
                 return code
             else:
-                print("[-] No code found in email          ")
+                print("[-] No code found in email, waiting for another...          ")
 
-            last_email_id = email["id"]
+        time.sleep(10)  # Slightly longer delay to prevent API caching issues
 
-        time.sleep(10)
     print("[-] Email timeout reached          ")
     return None
+
 
 def random_english_firstname():
     print("[*] Generating random name...", end='\r')
