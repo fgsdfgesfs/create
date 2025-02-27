@@ -1,4 +1,6 @@
+from datetime import datetime
 import os
+import random
 import re
 import string
 import time
@@ -14,39 +16,46 @@ import subprocess
 # Run git pull to update the script
 def update_script():
     try:
+        print("[*] Checking for updates...", end='\r')
         result = subprocess.run(["git", "pull"], check=True, capture_output=True, text=True)
-        print(result.stdout)  # Show output of git pull
-        print("Repository updated successfully.")
+        print("[+] Repository updated successfully: " + result.stdout.replace('\n', ' '))
     except subprocess.CalledProcessError as e:
-        print("Failed to update repository. Make sure Git is installed and configured.")
-        print(e.stderr)
+        print("[-] Failed to update repository: " + e.stderr.replace('\n', ' '))
 
 # Update the script before executing anything else
 update_script()
 
 def get_username(email):
     """Searches for the username linked to the email."""
+    print(f"[*] Looking up username for {email}...", end='\r')
     if os.path.exists(usernamefile):
         with open(usernamefile, "r", encoding="utf-8") as file:
             for line in file:
                 saved_email, saved_username = line.strip().split("|")
                 if saved_email == email:
-                    return saved_username  # Return username if found
-    return "Unknown"  # Return default if not found
-CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")  # Store in $HOME
+                    print(f"[+] Found username: {saved_username}          ")
+                    return saved_username
+    print("[-] Username not found, using default          ")
+    return "Unknown"
+CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")
 
 def save_credentials(email, password):
     """Saves email and password to a file."""
+    print("[*] Saving credentials...", end='\r')
     with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
         file.write(f"{email}\n{password}")
+    print("[+] Credentials saved successfully          ")
 
 def load_credentials():
     """Loads saved credentials if they exist."""
+    print("[*] Checking for saved credentials...", end='\r')
     if os.path.exists(CREDENTIALS_FILE):
         with open(CREDENTIALS_FILE, "r", encoding="utf-8") as file:
             lines = file.readlines()
             if len(lines) == 2:
+                print("[+] Found saved credentials          ")
                 return lines[0].strip(), lines[1].strip()
+    print("[-] No saved credentials found          ")
     return None, None
 
 def get_credentials():
@@ -54,21 +63,19 @@ def get_credentials():
     email_address, password_email = load_credentials()
 
     if email_address and password_email:
-        print(f"Saved ProtonMail: {email_address}")
-        choice = input("Do you want to use saved credentials? (yes/no): ").strip().lower()
+        print(f"[+] Loaded ProtonMail: {email_address}")
+        choice = input("[?] Use saved credentials? (yes/no): ").strip().lower()
 
         if choice == "no":
-            print("Deleting old credentials...")
-            os.remove(CREDENTIALS_FILE)  # Remove old credentials
-            email_address = input("Enter your ProtonMail email: ")
-            password_email = input("Enter your ProtonMail password: ")
+            print("[*] Deleting old credentials...", end='\r')
+            os.remove(CREDENTIALS_FILE)
+            email_address = input("[?] Enter ProtonMail email: ")
+            password_email = input("[?] Enter ProtonMail password: ")
             save_credentials(email_address, password_email)
-            print("New credentials saved successfully!")
     else:
-        email_address = input("Enter your ProtonMail email: ")
-        password_email = input("Enter your ProtonMail password: ")
+        email_address = input("[?] Enter ProtonMail email: ")
+        password_email = input("[?] Enter ProtonMail password: ")
         save_credentials(email_address, password_email)
-        print("Credentials saved successfully!")
 
     return email_address, password_email
 
@@ -81,12 +88,14 @@ import requests
 BASE_URL = "https://api.mail.gw"
 
 def get_token():
+    print("[*] Authenticating with mail server...", end='\r')
     response = requests.post(f"{BASE_URL}/token", json={"address": EMAIL, "password": PASSWORD})
     if response.status_code == 200:
+        print("[+] Authentication successful          ")
         return response.json().get("token")
+    print("[-] Authentication failed          ")
     return None
 
-# Function to get the latest email
 def get_latest_email(token):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{BASE_URL}/messages", headers=headers)
@@ -95,7 +104,6 @@ def get_latest_email(token):
         return messages[0] if messages else None
     return None
 
-# Function to fetch email content
 def get_email_content(token, email_id):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{BASE_URL}/messages/{email_id}", headers=headers)
@@ -103,43 +111,48 @@ def get_email_content(token, email_id):
         return response.json().get("text")
     return None
 
-# Function to delete an email
 def delete_email(token, email_id):
     headers = {"Authorization": f"Bearer {token}"}
     requests.delete(f"{BASE_URL}/messages/{email_id}", headers=headers)
 
-# Function to extract confirmation code
 def extract_code(text):
-    pattern = r'\b(?:FB-)?(\d{4,6})\b'  # Match 4-6 digit codes, with optional 'FB-' prefix
+    pattern = r'\b(?:FB-)?(\d{4,6})\b'
     match = re.search(pattern, text)
     return match.group(1) if match else None
 
-# Main script
-def wait_for_email(timeout=120):  # Timeout in seconds (2 minutes)
+def wait_for_email(timeout=120):
     token = get_token()
     if not token:
         return None
 
     last_email_id = None
     start_time = time.time()
+    check_count = 0
 
     while time.time() - start_time < timeout:
+        check_count += 1
+        print(f"[*] Checking for emails ({check_count})...", end='\r')
         email = get_latest_email(token)
         if email and email["id"] != last_email_id:
+            print(f"[+] New email received (ID: {email['id']})          ")
             content = get_email_content(token, email["id"])
             code = extract_code(content) if content else None
             delete_email(token, email["id"])
 
             if code:
+                print(f"[+] Verification code found: {code}")
                 return code
+            else:
+                print("[-] No code found in email          ")
 
             last_email_id = email["id"]
 
-        time.sleep(10)  # Check for new emails every 10 seconds
-
-    return None  # Return None if no code is found within 2 minutes
+        time.sleep(10)
+    print("[-] Email timeout reached          ")
+    return None
 
 def random_english_firstname():
+    print("[*] Generating random name...", end='\r')
     european_locales = ['fr_FR', 'de_DE', 'it_IT', 'es_ES', 'nl_NL', 'ru_RU', 'pl_PL', 'sv_SE', 'da_DK']
     fake = Faker(european_locales)
     firstname = None
@@ -151,9 +164,11 @@ def random_english_firstname():
             firstname=random_fname
         if re.fullmatch(r'[A-Za-z]+', random_lname):
             lastname=random_lname
+    print(f"[+] Generated name: {firstname} {lastname}          ")
     return firstname, lastname
 
 def generate_random_phone_number():
+    print("[*] Generating phone number...", end='\r')
     random_number = str(random.randint(1000000, 9999999))
     third = random.randint(0, 4)
     forth = random.randint(1, 7)
@@ -163,11 +178,12 @@ def generate_random_phone_number():
         f"+92 3{third}{forth} {random_number}",
         f"+923{third}{forth}{random_number}"
     ]
-    return random.choice(phone_formats)
-import random
-
+    number = random.choice(phone_formats)
+    print(f"[+] Generated phone: {number}          ")
+    return number
 
 def generate_user_details():
+    print("[*] Generating user details...")
     fn,ln=random_english_firstname()
     year = random.randint(1960, 2006)
     date = random.randint(1, 28)
@@ -175,21 +191,21 @@ def generate_user_details():
     formatted_date = f"{date:02d}-{month:02d}-{year:04d}"
     password = generate_random_password()
     phone_number = generate_random_phone_number()
+    print(f"[+] User details generated: {fn} {ln} | {formatted_date}          ")
     return fn, ln, date,year,month, phone_number, password
 
 def generate_random_password():
+    print("[*] Generating password...", end='\r')
     length = random.randint(10, 16)
     all_characters = string.ascii_letters + string.digits
     password = ''.join(random.choice(all_characters) for _ in range(length))
+    print(f"[+] Password generated: {password}          ")
     return password
-import random
-from datetime import datetime
 
 def generate_old_android_ua():
-    # Seed random with current time for variation
+    print("[*] Generating user agent...", end='\r')
     random.seed(datetime.now().timestamp())
     
-    # Components
     android_versions = [
         ("4.0.3", "2011"),
         ("4.0.4", "2012"),
@@ -216,18 +232,15 @@ def generate_old_android_ua():
         ("DROID RAZR", "Motorola")
     ]
 
- 
     android_ver, android_code = random.choice(android_versions)
     device, manufacturer = random.choice(devices)
     
-    # Build number generation
     build_number = f"{android_code}"
     if android_ver.startswith("4.0"):
         build_number += f".{random.choice(['IMM76', 'GRK39', 'IMM76D'])}"
     else:
         build_number += random.choice(["D", "E", "F"]) + str(random.randint(10,99))
     
-    # Chrome version correlation
     chrome_major = random.randint(
         18 if android_ver.startswith("4.0") else 25,
         35 if android_ver.startswith("4.4") else 32
@@ -235,22 +248,25 @@ def generate_old_android_ua():
     chrome_build = random.randint(1000, 1999)
     chrome_patch = random.randint(50, 199)
     
-    # WebKit version logic
     webkit_base = "534.30" if chrome_major < 25 else "537.36"
     webkit_ver = f"{webkit_base}.{random.randint(1, 99)}" if random.random() > 0.7 else webkit_base
     
-    return (
+    ua = (
         f"Mozilla/5.0 (Linux; Android {android_ver}; {device} Build/{build_number}) "
         f"AppleWebKit/{webkit_ver} (KHTML, like Gecko) "
         f"Chrome/{chrome_major}.0.{chrome_build}.{chrome_patch} Mobile Safari/{webkit_ver.split('.')[0]}.0"
     )
+    print(f"[+] User agent generated: {ua[:60]}...          ")
+    return ua
 
 from selenium.common.exceptions import NoSuchElementException
 def create_33mail(usern):
+    print(f"\n[+] Starting 33mail creation process for {usern}")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
     username=fn+ln+asdf
+    print(f"[*] Generated username: {username}")
     url = "https://m.facebook.com/reg/?is_two_steps_login=0&cid=103&refsrc=deprecated&soft=hjk"
 
     headers = {
@@ -269,11 +285,14 @@ def create_33mail(usern):
         "viewport-width": "720"
     }
     
+    print("[*] Initializing session...")
     session = requests.Session()
     response = session.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     form = soup.find("form")
+    
     if form:
+        print("[*] Found registration form")
         action_url = requests.compat.urljoin(url, form["action"]) if form.has_attr("action") else url
         inputs = form.find_all("input")
         data = {
@@ -287,20 +306,25 @@ def create_33mail(usern):
             "encpass": f"{password}",
             "submit": "Sign Up"
         }
+        
         for inp in inputs:
             if inp.has_attr("name") and inp["name"] not in data:
                 data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
 
+        print("[*] Submitting registration form...")
         submit_response = session.post(action_url, headers=headers, data=data)
+        
         if "c_user" in session.cookies:
             uid = session.cookies.get("c_user")
-            
+            print(f"[+] Registration successful! UID: {uid}")
         else:
-            pass
+            print("[-] Registration failed          ")
             return
     else:
-        pass
+        print("[-] No registration form found          ")
+        return
     
+    print("[*] Attempting email change...")
     change_email_url = "https://m.facebook.com/changeemail/"
     email_response = session.get(change_email_url, headers=headers)
     
@@ -308,7 +332,7 @@ def create_33mail(usern):
     form = soup.find("form")
     
     if form:
-
+        print("[*] Found email change form")
         action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
         inputs = form.find_all("input")
         data = {}
@@ -318,51 +342,57 @@ def create_33mail(usern):
         data["new"] = f"{username}@{usern}.protonsemail.com"
         data["submit"] = "Add"
         
+        print("[*] Submitting email change request...")
         submit_response = session.post(action_url, headers=headers, data=data)
+        print("[*] Waiting for confirmation email...")
         confirmation_code = wait_for_email()
+        
         if not confirmation_code:
+            print("[-] No confirmation code received          ")
             return
-        print(f"{uid}|{password}")
+        
+        print(f"[+] Account created: {uid}|{password}")
         email=f"{username}@{usern}.protonsemail.com"
-        storage_dir = "/sdcard"  # Use "/data/data/com.termux/files/home/" for internal storage
+        storage_dir = "/sdcard"
         file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
 
         if not os.path.exists(file_path):
             open(file_path, "w").close()
 
-        
         credentials = f"{uid}|{password}|{confirmation_code}|{email}\n"
 
         with open(file_path, "a") as file:
             file.write(credentials)
-
+        print(f"[+] Saved credentials to {file_path}")
     else:
-        pass
+        print("[-] Email change form not found          ")
     
     return
 
 
 if __name__ == "__main__":
     try:
-
+        print("\n===== 33Mail Account Creator =====\n")
         
         while True:
             try:
-                max_create = int(input("How many 33mail addresses do you want to create? (Max: 10, Enter 0 to exit): "))
+                max_create = int(input("[?] How many addresses to create? (1-10, 0=exit): "))
                 if max_create == 0:
-                    print("Exiting...")
+                    print("[+] Exiting...")
                     break
                 elif 1 <= max_create <= 10:
+                    print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
+                        print(f"\n=== Account {i+1}/{max_create} ===")
                         usern = get_username(EMAIL)
-                        
                         create_33mail(usern)
+                    print("\n[+] Batch creation completed")
                 else:
-                    print("Invalid input. Please enter a number between 1 and 10.")
+                    print("[-] Invalid input (1-10 only)")
             except ValueError:
-                print("Invalid input. Please enter a valid number.")
-    except:
-        pass
+                print("[-] Please enter a valid number")
+    except KeyboardInterrupt:
+        print("\n[!] Interrupted by user")
     finally:
-
+        print("[+] Clean exit")
         exit()
