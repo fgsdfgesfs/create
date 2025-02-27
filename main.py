@@ -33,7 +33,111 @@ def get_username(email):
                 if saved_email == email:
                     return saved_username  # Return username if found
     return "Unknown"  # Return default if not found
+CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")  # Store in $HOME
 
+def save_credentials(email, password):
+    """Saves email and password to a file."""
+    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
+        file.write(f"{email}\n{password}")
+
+def load_credentials():
+    """Loads saved credentials if they exist."""
+    if os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+            if len(lines) == 2:
+                return lines[0].strip(), lines[1].strip()
+    return None, None
+
+def get_credentials():
+    """Handle credential input or retrieval from file."""
+    email_address, password_email = load_credentials()
+
+    if email_address and password_email:
+        print(f"Saved ProtonMail: {email_address}")
+        choice = input("Do you want to use saved credentials? (yes/no): ").strip().lower()
+
+        if choice == "no":
+            print("Deleting old credentials...")
+            os.remove(CREDENTIALS_FILE)  # Remove old credentials
+            email_address = input("Enter your ProtonMail email: ")
+            password_email = input("Enter your ProtonMail password: ")
+            save_credentials(email_address, password_email)
+            print("New credentials saved successfully!")
+    else:
+        email_address = input("Enter your ProtonMail email: ")
+        password_email = input("Enter your ProtonMail password: ")
+        save_credentials(email_address, password_email)
+        print("Credentials saved successfully!")
+
+    return email_address, password_email
+
+EMAIL, PASSWORD = get_credentials()
+import time
+import re
+import requests
+
+
+BASE_URL = "https://api.mail.gw"
+
+def get_token():
+    response = requests.post(f"{BASE_URL}/token", json={"address": EMAIL, "password": PASSWORD})
+    if response.status_code == 200:
+        return response.json().get("token")
+    return None
+
+# Function to get the latest email
+def get_latest_email(token):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{BASE_URL}/messages", headers=headers)
+    if response.status_code == 200:
+        messages = response.json().get("hydra:member", [])
+        return messages[0] if messages else None
+    return None
+
+# Function to fetch email content
+def get_email_content(token, email_id):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{BASE_URL}/messages/{email_id}", headers=headers)
+    if response.status_code == 200:
+        return response.json().get("text")
+    return None
+
+# Function to delete an email
+def delete_email(token, email_id):
+    headers = {"Authorization": f"Bearer {token}"}
+    requests.delete(f"{BASE_URL}/messages/{email_id}", headers=headers)
+
+# Function to extract confirmation code
+def extract_code(text):
+    pattern = r'\b(?:FB-)?(\d{4,6})\b'  # Match 4-6 digit codes, with optional 'FB-' prefix
+    match = re.search(pattern, text)
+    return match.group(1) if match else None
+
+# Main script
+def wait_for_email(timeout=120):  # Timeout in seconds (2 minutes)
+    token = get_token()
+    if not token:
+        return None
+
+    last_email_id = None
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        email = get_latest_email(token)
+        if email and email["id"] != last_email_id:
+            content = get_email_content(token, email["id"])
+            code = extract_code(content) if content else None
+            delete_email(token, email["id"])
+
+            if code:
+                return code
+
+            last_email_id = email["id"]
+
+        time.sleep(10)  # Check for new emails every 10 seconds
+
+    return None  # Return None if no code is found within 2 minutes
 
 def random_english_firstname():
     european_locales = ['fr_FR', 'de_DE', 'it_IT', 'es_ES', 'nl_NL', 'ru_RU', 'pl_PL', 'sv_SE', 'da_DK']
@@ -215,45 +319,9 @@ def create_33mail(driver,usern):
         data["submit"] = "Add"
         
         submit_response = session.post(action_url, headers=headers, data=data)
-        driver.implicitly_wait(10)
-        for i in range(15):
-            if i==12:
-                return
-            try:
-                random_filename = ''.join(random.choices(string.ascii_letters + string.digits, k=10)) + ".png"
-                screenshot_path = f"/storage/emulated/0/{random_filename}"  # Save in SD card root
-                driver.save_screenshot(screenshot_path)
-
-
-                driver.find_element(By.XPATH, '//a[@title="Inbox"]').click()
-                code_text = driver.find_element(By.XPATH, '//span[contains(text(),"code")]')
-                code_string = code_text.text
-                clean_code = re.search(r'\d+', code_string).group()
-                break 
-            except:
-                continue
-        otp =clean_code
-        driver.find_element(By.XPATH,'//input[@id="idSelectAll"]')
-        driver.implicitly_wait(3)
-        try:
-            # Check if the message container exists
-            MESSAGES = driver.find_element(By.XPATH, '//div[@class="item-container-wrapper relative"]')
-            if MESSAGES:
-                try:
-                    # Check if the "Select All" checkbox exists and click it
-                    select_all_checkbox = driver.find_element(By.XPATH, '//input[@id="idSelectAll"]')
-                    select_all_checkbox.click()
-                except NoSuchElementException:
-                    pass
-                time.sleep(3)
-                try:
-                    # Check if the button exists and click it
-                    button = driver.find_element(By.XPATH, '//button[@data-testid="toolbar:movetotrash"]')
-                    button.click()
-                except NoSuchElementException:
-                    pass
-        except NoSuchElementException:
-            pass
+        confirmation_code = wait_for_email()
+        if not confirmation_code:
+            return
         print(f"{uid}|{password}")
         email=f"{username}@{usern}.protonsemail.com"
         storage_dir = "/sdcard"  # Use "/data/data/com.termux/files/home/" for internal storage
@@ -263,9 +331,8 @@ def create_33mail(driver,usern):
             open(file_path, "w").close()
 
         
-        credentials = f"{uid}|{password}|{otp}|{email}\n"
+        credentials = f"{uid}|{password}|{confirmation_code}|{email}\n"
 
-        # Append to the file
         with open(file_path, "a") as file:
             file.write(credentials)
 
@@ -273,104 +340,12 @@ def create_33mail(driver,usern):
         pass
     
     return
-CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")  # Store in $HOME
 
-def save_credentials(email, password):
-    """Saves email and password to a file."""
-    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-        file.write(f"{email}\n{password}")
 
-def load_credentials():
-    """Loads saved credentials if they exist."""
-    if os.path.exists(CREDENTIALS_FILE):
-        with open(CREDENTIALS_FILE, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-            if len(lines) == 2:
-                return lines[0].strip(), lines[1].strip()
-    return None, None
-
-def get_credentials():
-    """Handle credential input or retrieval from file."""
-    email_address, password_email = load_credentials()
-
-    if email_address and password_email:
-        print(f"Saved ProtonMail: {email_address}")
-        choice = input("Do you want to use saved credentials? (yes/no): ").strip().lower()
-
-        if choice == "no":
-            print("Deleting old credentials...")
-            os.remove(CREDENTIALS_FILE)  # Remove old credentials
-            email_address = input("Enter your ProtonMail email: ")
-            password_email = input("Enter your ProtonMail password: ")
-            save_credentials(email_address, password_email)
-            print("New credentials saved successfully!")
-    else:
-        email_address = input("Enter your ProtonMail email: ")
-        password_email = input("Enter your ProtonMail password: ")
-        save_credentials(email_address, password_email)
-        print("Credentials saved successfully!")
-
-    return email_address, password_email
-
-def login_and_process(driver,email_address, password_email):
-    """Login to ProtonMail and process emails."""
-
-    driver.get("https://account.proton.me/login")
-    driver.implicitly_wait(80)
-
-    # Fill in login credentials
-    username_field = driver.find_element(By.XPATH, '//input[@id="username"]')
-    username_field.send_keys(email_address)
-    
-    password_field = driver.find_element(By.XPATH, '//input[@id="password"]')
-    password_field.send_keys(password_email)
-    
-    time.sleep(1)
-    driver.find_element(By.XPATH, '//button[@type="submit"]').click()
-    time.sleep(30)
-
-    # Navigate to inbox
-    driver.get("https://mail.proton.me/u/6/inbox")
-
-    try:
-        driver.find_element(By.XPATH, '//input[@id="idSelectAll"]')
-        driver.implicitly_wait(7)
-
-        # Check if the message container exists
-        messages = driver.find_element(By.XPATH, '//div[@class="item-container-wrapper relative"]')
-        if messages:
-            try:
-                # Click "Select All" checkbox
-                select_all_checkbox = driver.find_element(By.XPATH, '//input[@id="idSelectAll"]')
-                select_all_checkbox.click()
-            except NoSuchElementException:
-                pass
-                time.sleep(3)
-
-            try:
-                # Click "Move to Trash" button
-                button = driver.find_element(By.XPATH, '//button[@data-testid="toolbar:movetotrash"]')
-                button.click()
-            except NoSuchElementException:
-                pass
-    except NoSuchElementException:
-        pass
 if __name__ == "__main__":
     try:
 
-        email_address, password_email = get_credentials()
         
-        options = webdriver.ChromeOptions()
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-notifications")
-    #    options.add_argument("--remote-debugging-port=9222") 
-        options.add_argument("--disable-blink-features=AutomationControlled")
-
-        driver = webdriver.Chrome(options=options)
-        login_and_process(driver, email_address, password_email)
-
         while True:
             try:
                 max_create = int(input("How many 33mail addresses do you want to create? (Max: 10, Enter 0 to exit): "))
@@ -379,17 +354,15 @@ if __name__ == "__main__":
                     break
                 elif 1 <= max_create <= 10:
                     for i in range(max_create):
-                        usern = get_username(email_address)
+                        usern = get_username(EMAIL)
                         
-                        create_33mail(driver, usern)
+                        create_33mail(usern)
                 else:
                     print("Invalid input. Please enter a number between 1 and 10.")
             except ValueError:
                 print("Invalid input. Please enter a valid number.")
     except:
-        if driver:
-            driver.quit()
+        pass
     finally:
-        if driver:
-            driver.quit()
+
         exit()
