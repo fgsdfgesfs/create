@@ -246,7 +246,7 @@ def generate_old_android_ua():
     )
 
 from selenium.common.exceptions import NoSuchElementException
-def create_33mail(driver,usern):
+def create_33mail(usern):
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
