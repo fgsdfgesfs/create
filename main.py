@@ -400,7 +400,7 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                        usern = "hussnain" #get_username(EMAIL)
+                        usern =get_username(EMAIL)
                         create_fbunconfirmed(usern)
                     print("\n[+] Batch creation completed")
                 else:
