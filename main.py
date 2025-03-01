@@ -145,7 +145,7 @@ def wait_for_email(timeout=36):
         if email and email["id"] not in deleted_emails:
             print(f"[+] New email received (ID: {email['id']})          ")
             content = get_email_content(token, email["id"])
-            print(content)
+            
             code = extract_code(content) if content else None
 
             if delete_email(token, email["id"]):  # Ensure email deletion before proceeding
@@ -203,7 +203,7 @@ def generate_user_details():
     formatted_date = f"{date:02d}-{month:02d}-{year:04d}"
     password = generate_random_password()
     phone_number = generate_random_phone_number()
-    print(f"[+] User details generated: {fn} {ln} | {formatted_date}          ")
+    
     return fn, ln, date,year,month, phone_number, password
 
 def generate_random_password():
@@ -268,7 +268,7 @@ def generate_old_android_ua():
         f"AppleWebKit/{webkit_ver} (KHTML, like Gecko) "
         f"Chrome/{chrome_major}.0.{chrome_build}.{chrome_patch} Mobile Safari/{webkit_ver.split('.')[0]}.0"
     )
-    print(f"[+] User agent generated: {ua[:60]}...          ")
+    print(f"[+] User agent generated:...          ")
     return ua
 
 from selenium.common.exceptions import NoSuchElementException
@@ -370,16 +370,15 @@ def create_fbunconfirmed(usern):
             print("[-] Email change form not found          ")
 
     print(f"[+] Account created: {uid}|{password}")
-    cookies = session.cookies.get_dict()  # Convert to dictionary
-    print(f"cookies = {json.dumps(cookies, indent=4)}")
+    ccookies=json.dumps(session.cookies.get_dict())
     email=f"{username}@{usern}.protonsemail.com"
     storage_dir = "/sdcard"
     file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
 
     if not os.path.exists(file_path):
         open(file_path, "w").close()
-
-    credentials = f"{uid}|{password}|{confirmation_code}|{email}\n"
+    
+    credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
 
     with open(file_path, "a") as file:
         file.write(credentials)
