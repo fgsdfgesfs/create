@@ -337,10 +337,15 @@ def create_fbunconfirmed(usern):
         return
     
     print("[*] Attempting email change...")
-    for i in range(10):
+    for i in range(2):
         change_email_url = "https://m.facebook.com/changeemail/"
         email_response = session.get(change_email_url, headers=headers)
-        
+        if "checkpoint" in email_response.text.lower():
+            print("Account is in checkpoint.")
+        elif "login" in email_response.url or "recover" in email_response.url:
+            print("Account is logged out or disabled.")
+        else:
+            print("Account is active.")
         soup = BeautifulSoup(email_response.text, "html.parser")
         form = soup.find("form")
         
@@ -365,24 +370,25 @@ def create_fbunconfirmed(usern):
                 continue
             
             if confirmation_code:
+                print(f"[+] Account created: {uid}|{password}")
+                ccookies=json.dumps(session.cookies.get_dict())
+                email=f"{username}@{usern}.protonsemail.com"
+                storage_dir = "/sdcard"
+                file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
+
+                if not os.path.exists(file_path):
+                    open(file_path, "w").close()
+                
+                credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+                with open(file_path, "a") as file:
+                    file.write(credentials)
+                print(f"[+] Saved credentials to {file_path}")
                 break
         else:
             print("[-] Email change form not found          ")
 
-    print(f"[+] Account created: {uid}|{password}")
-    ccookies=json.dumps(session.cookies.get_dict())
-    email=f"{username}@{usern}.protonsemail.com"
-    storage_dir = "/sdcard"
-    file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
 
-    if not os.path.exists(file_path):
-        open(file_path, "w").close()
-    
-    credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
-
-    with open(file_path, "a") as file:
-        file.write(credentials)
-    print(f"[+] Saved credentials to {file_path}")
     return
 
 
@@ -396,7 +402,7 @@ if __name__ == "__main__":
                 if max_create == 0:
                     print("[+] Exiting...")
                     break
-                elif 1 <= max_create <= 10:
+                elif 1 <= max_create <= 40:
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
