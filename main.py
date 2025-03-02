@@ -364,7 +364,8 @@ def create_fbunconfirmed(usern):
         print("[-] No registration form found          ")
         return
     status=check_account(uid)
-    if "cp" in status:
+    print(status)
+    if "CP" in status:
         print("account got to checkpoint")
         print("change ip address by turning on aeroplane mode")
         return
