@@ -271,6 +271,34 @@ def generate_old_android_ua():
     print(f"[+] User agent generated:...          ")
     return ua
 
+def check_account(fb_id):
+    url = f"https://www.facebook.com/p/{fb_id}"
+    session = requests.Session()
+    
+    headers = {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "accept-encoding": "gzip, deflate",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "max-age=0",
+        "sec-ch-ua": '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+    }
+
+    response = session.get(url, headers=headers, allow_redirects=True)
+    soup = BeautifulSoup(response.content, "html.parser")
+    title = soup.find("title").text.strip()
+
+    # Check for common checkpoint indicators
+    if "content not available" in title.lower() or "facebook" == title.lower():
+        return "CP"  # Account is in checkpoint or deactivated
+    return "OK"  # Account is active
 from selenium.common.exceptions import NoSuchElementException
 def create_fbunconfirmed(usern):
     print(f"\n[+] Starting fb creation process ")
@@ -335,17 +363,15 @@ def create_fbunconfirmed(usern):
     else:
         print("[-] No registration form found          ")
         return
-    
+    status=check_account(uid)
+    if "cp" in status:
+        print("account got to checkpoint")
+        print("change ip address by turning on aeroplane mode")
+        return
     print("[*] Attempting email change...")
     for i in range(2):
         change_email_url = "https://m.facebook.com/changeemail/"
         email_response = session.get(change_email_url, headers=headers)
-        if "checkpoint" in email_response.text.lower():
-            print("Account is in checkpoint.")
-        elif "login" in email_response.url or "recover" in email_response.url:
-            print("Account is logged out or disabled.")
-        else:
-            print("Account is active.")
         soup = BeautifulSoup(email_response.text, "html.parser")
         form = soup.find("form")
         
