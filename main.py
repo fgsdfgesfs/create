@@ -13,7 +13,13 @@ from faker import Faker
 usernamefile = "email_usernames.txt"
 import os
 import subprocess
-
+import json
+import re
+import time
+import requests
+import random
+import string
+import bs4
 # Run git pull to update the script
 def update_script():
     try:
@@ -148,7 +154,7 @@ def wait_for_email(timeout=36):
             
             code = extract_code(content) if content else None
 
-            if delete_email(token, email["id"]):  # Ensure email deletion before proceeding
+            if delete_email(token, email["id"]):  
                 deleted_emails.add(email["id"])
 
             if code:
@@ -162,6 +168,22 @@ def wait_for_email(timeout=36):
     print("[-] Email timeout reached          ")
     return None
 
+def delete_all_emails(token):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(f"{BASE_URL}/messages", headers=headers)
+    if response.status_code != 200:
+        print("[-] Failed to fetch emails for deletion.")
+        return
+
+    messages = response.json().get("hydra:member", [])
+    if not messages:
+        print("[*] No emails to delete.")
+        return
+
+    for email in messages:
+        email_id = email.get("id")
+        if email_id:
+            delete_email(token, email_id)
 
 def random_english_firstname():
     print("[*] Generating random name...", end='\r')
@@ -299,7 +321,10 @@ def check_account(fb_id):
     if "content not available" in title.lower() or "facebook" == title.lower():
         return "CP"  # Account is in checkpoint or deactivated
     return "OK"  # Account is active
+
 from selenium.common.exceptions import NoSuchElementException
+
+
 def create_fbunconfirmed(usern):
     print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
@@ -370,6 +395,9 @@ def create_fbunconfirmed(usern):
         print("change ip address by turning on aeroplane mode")
         return
     print("[*] Attempting email change...")
+    token = get_token()
+    if token:
+        delete_all_emails(token)
     for i in range(2):
         change_email_url = "https://m.facebook.com/changeemail/"
         email_response = session.get(change_email_url, headers=headers)
@@ -403,19 +431,18 @@ def create_fbunconfirmed(usern):
                 storage_dir = "/sdcard"
                 file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
 
-                if not os.path.exists(file_path):
+                if not os.path.exists( file_path):
                     open(file_path, "w").close()
                 
                 credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
 
-                with open(file_path, "a") as file:
+                with open( file_path, "a") as file:
                     file.write(credentials)
-                print(f"[+] Saved credentials to {file_path}")
+                print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
                 break
         else:
             print("[-] Email change form not found          ")
-
-
+    
     return
 
 
@@ -438,9 +465,9 @@ if __name__ == "__main__":
                     print("\n[+] Batch creation completed")
                 else:
                     print("[-] Invalid input (1-10 only)")
-            except ValueError:
-                print("[-] Please enter a valid number")
-    except KeyboardInterrupt:
+            except Exception as  e:
+                print(e)
+    except :
         print("\n[!] Interrupted by user")
     finally:
         print("[+] Clean exit")
