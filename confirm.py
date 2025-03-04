@@ -600,5 +600,7 @@ if __name__ == "__main__":
     except :
         print("\n[!] Interrupted by user")
     finally:
+        if browser:
+            browser.quit()
         print("[+] Clean exit")
         exit()
