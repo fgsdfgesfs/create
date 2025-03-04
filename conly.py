@@ -19,7 +19,7 @@ from selenium.webdriver.common.by import By
 def create_chrome_instance():
 
     options = webdriver.ChromeOptions()
-  #  options.add_argument("--headless")  # Headless mode for Termux
+    options.add_argument("--headless")  # Headless mode for Termux
     options.add_argument("--no-sandbox")  
     options.add_argument("--disable-gpu")  
     options.add_argument("--disable-software-rasterizer")  
