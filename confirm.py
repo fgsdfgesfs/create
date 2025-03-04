@@ -402,18 +402,6 @@ def create_fbunconfirmed(browser):
     confirmation_code=extract_code(code)
     print(f"[+] Verification code found: {confirmation_code}")
     if confirmation_code:
-        ccookies=json.dumps(session.cookies.get_dict())
-        storage_dir = "/sdcard"
-        file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
-
-        if not os.path.exists( file_path):
-            open(file_path, "w").close()
-        
-        credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
-
-        with open( file_path, "a") as file:
-            file.write(credentials)
-        print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
         generator = DeviceHeaderGenerator()
         device_profile = generator.generate_device_profile()
         
@@ -561,6 +549,27 @@ def create_fbunconfirmed(browser):
             except requests.RequestException as e:
                 time.sleep(3)
                 continue
+
+        time.sleep(5)
+        statuss=check_account(uid)
+        ccookies=json.dumps(session.cookies.get_dict())
+        storage_dir = "/sdcard"
+        file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
+
+        if not os.path.exists( file_path):
+            open(file_path, "w").close()
+        if "CP" in statuss:
+            credentials = f"CP|{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+            with open( file_path, "a") as file:
+                file.write(credentials)
+            print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
+        else:
+            credentials = f"OKay|{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+            with open( file_path, "a") as file:
+                file.write(credentials)
+            print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
     return
 
 
