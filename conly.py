@@ -326,6 +326,7 @@ def extract_code(text):
     return matches[0] if matches else None
 
 def create_fbunconfirmed(browser):
+    browser.get("https://temporarymail.com/en/")
 
     email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
     print(f"{email}||")
@@ -398,14 +399,15 @@ def create_fbunconfirmed(browser):
         return
     browser.find_element(By.XPATH,'//button[@class="openMessage"]').click()
     code=browser.find_element(By.XPATH,'//h4[contains(text(),"confirmation ")]').text
-    
+    confirmation_code=None
     confirmation_code=extract_code(code)
+    browser.delete_all_cookies()
     print(f"[+] Verification code found: {confirmation_code}")
     if confirmation_code:
         statuss=check_account(uid)
         ccookies=json.dumps(session.cookies.get_dict())
         storage_dir = "/sdcard"
-        file_path = os.path.join(storage_dir, "unfirmed_accounts.txt")
+        file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
         uid = session.cookies.get("c_user")
         if not os.path.exists( file_path):
             open(file_path, "w").close()
@@ -429,6 +431,7 @@ if __name__ == "__main__":
         print("\n===== 33Mail Account Creator =====\n")
         browser=create_chrome_instance()
         browser.implicitly_wait(60)
+        browser.get("https://temporarymail.com/en/")
         while True:
             try:
              #   max_create = int(input("[?] How many addresses to create? (1-10, 0=exit): "))
@@ -440,7 +443,7 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                        browser.get("https://temporarymail.com/en/")
+                        
                         create_fbunconfirmed(browser)
                         browser.delete_all_cookies()
                     print("\n[+] Batch creation completed")
