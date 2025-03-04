@@ -260,7 +260,7 @@ def create_fbunconfirmed():
         file.write(credentials)
     print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
     get_url = "https://m.facebook.com/confirmemail.php?next=https%3A%2F%2Fm.facebook.com%2F%3Fdeoia%3D1&soft=hjk"
-    session = requests.Session()
+    
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Encoding": "gzip, deflate, br",
