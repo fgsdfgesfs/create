@@ -11,10 +11,10 @@ import random
 # Generate a random filename for saving the HTML response
 def random_filename():
     return "response_" + "".join(random.choices(string.ascii_letters + string.digits, k=10)) + ".html"
-email ="yoeva6833@allfreemail.net"
-otp = "32467"
-uid ="61573613531413"
-cookies ={"datr": "tTHHZ1Ub06TOyJNURzAOP7-D", "fr": "0LE7ydSabH87U10S6.AWVKkRZaDU6sAF68YDVjo1DfvArbK6i6SBQ0nQ.BnxzG1..AAA.0.0.BnxzG2.AWXaL6pdSKs", "c_user": "61573613531413", "sb": "tjHHZ1ZlMeLptAOcJRrdiFxf", "xs": "27%3AlNJ0T0mFw2nh0A%3A2%3A1741107647%3A-1%3A-1", "ps_l": "0", "ps_n": "0"}
+email ="kendyll.bizier@allfreemail.net"
+otp = "99439"
+uid ="61573919306724"
+cookies ={"datr": "bSzHZ2vkDImLmKgZ59A-tESh", "fr": "0TWLGnLEQTwB6qCdH.AWWgaAtitl0gSDxM-9Hz_vT8kkRl4tkPRLN2_g.Bnxyxt..AAA.0.0.Bnxyxu.AWVuNHTF-Ts", "c_user": "61573919306724", "sb": "bizHZ04dj65Rhsjm9FqEaxNw", "xs": "24%3AYEQwwjlgmjv4Qw%3A2%3A1741106293%3A-1%3A-1"}
 session = requests.Session()
 import random
 from faker import Faker
