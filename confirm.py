@@ -328,12 +328,12 @@ def extract_code(text):
 def create_fbunconfirmed(browser):
 
     email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
+    print(f"{email}||")
     print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
-    username=fn+ln+asdf
-    print(f"[*] Generated username: {username}")
+
     url = "https://m.facebook.com/reg/?is_two_steps_login=0&cid=103&refsrc=deprecated&soft=hjk"
 
     headers = {
@@ -555,7 +555,7 @@ def create_fbunconfirmed(browser):
         ccookies=json.dumps(session.cookies.get_dict())
         storage_dir = "/sdcard"
         file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
-
+        uid = session.cookies.get("c_user")
         if not os.path.exists( file_path):
             open(file_path, "w").close()
         if "CP" in statuss:
