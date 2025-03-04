@@ -367,14 +367,15 @@ def create_fbunconfirmed():
     print("[*] Attempting email change...")
     confirmation_code=input("enter otp: ")
     ccookies=json.dumps(session.cookies.get_dict())
+    storage_dir = "/sdcard"
+    file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
 
-
-    if not os.path.exists( "unconfirmed_accounts.txt"):
-        open("unconfirmed_accounts.txt", "w").close()
+    if not os.path.exists( file_path):
+        open(file_path, "w").close()
     
     credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
 
-    with open( "unconfirmed_accounts.txt", "a") as file:
+    with open( file_path, "a") as file:
         file.write(credentials)
     print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
     generator = DeviceHeaderGenerator()
