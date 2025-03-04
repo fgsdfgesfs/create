@@ -1,3 +1,4 @@
+
 from datetime import datetime
 import json
 import os
@@ -10,6 +11,30 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from faker import Faker
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+def create_chrome_instance():
+
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")  # Headless mode for Termux
+    options.add_argument("--no-sandbox")  
+    options.add_argument("--disable-gpu")  
+    options.add_argument("--disable-software-rasterizer")  
+    options.add_argument("--disable-dev-shm-usage")  
+    options.add_argument("--disable-infobars")  
+    options.add_argument("--disable-blink-features=AutomationControlled")  
+    options.add_argument("--window-size=400x640")  # Set window size
+
+    user_agent = "Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    options.add_argument(f"user-agent={user_agent}")
+
+
+    # Initialize Chrome WebDriver
+    driver = webdriver.Chrome(options=options)
+    return driver
 
 import os
 import subprocess
@@ -293,9 +318,16 @@ class DeviceHeaderGenerator:
             "accept-language": "en-US,en;q=0.9",
             "priority": "u=1, i"
         }
+def extract_code(text):
+    # Match "FB-" followed by 4-6 digits, capturing the digits
+    pattern = r'FB-(\d{4,6})'
+    matches = re.findall(pattern, text)
+    # Return the first match (or None if no matches)
+    return matches[0] if matches else None
 
-def create_fbunconfirmed():
-    email=input("enter email")
+def create_fbunconfirmed(browser):
+
+    email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
     print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
@@ -364,174 +396,179 @@ def create_fbunconfirmed():
         print("account got to checkpoint")
         print("change ip address by turning on aeroplane mode")
         return
-    print("[*] Attempting email change...")
-    confirmation_code=input("enter otp: ")
-    ccookies=json.dumps(session.cookies.get_dict())
-    storage_dir = "/sdcard"
-    file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
-
-    if not os.path.exists( file_path):
-        open(file_path, "w").close()
+    browser.find_element(By.XPATH,'//button[@class="openMessage"]').click()
+    code=browser.find_element(By.XPATH,'//h4[contains(text(),"confirmation ")]').text
     
-    credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+    confirmation_code=extract_code(code)
+    print(f"[+] Verification code found: {confirmation_code}")
+    if confirmation_code:
+        ccookies=json.dumps(session.cookies.get_dict())
+        storage_dir = "/sdcard"
+        file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
 
-    with open( file_path, "a") as file:
-        file.write(credentials)
-    print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
-    generator = DeviceHeaderGenerator()
-    device_profile = generator.generate_device_profile()
-    
-    first_headers = generator.generate_first_headers(device_profile)
-    second_headers = generator.generate_second_headers(device_profile)
-    
-
-    headers = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "accept-language": "en-US,en;q=0.9",
-        "cache-control": "max-age=0",
-        "dpr": "1",
-        "priority": "u=0, i",
-        "referer": "https://www.facebook.com/?_rdc=2&_rdr",
-        "sec-ch-prefers-color-scheme": "dark",
-        "sec-ch-ua": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
-        "sec-ch-ua-full-version-list": '"Not(A:Brand";v="99.0.0.0", "Google Chrome";v="133.0.6943.141", "Chromium";v="133.0.6943.141"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": "Windows",
-        "sec-ch-ua-platform-version": "10.0.0",
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "same-origin",
-        "sec-fetch-user": "?1",
-        "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "viewport-width": "403"
-    }
-
-    # First request
-    url_1 = "https://www.facebook.com/confirmemail.php?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb"
-    response_1 = session.get(url_1, headers=first_headers)
-
-    html_content = response_1.text  # Your HTML response
-    soup = BeautifulSoup(html_content, "html.parser")
-    def get_value(name):
-        tag = soup.find("input", {"name": name})
-        if tag and tag.has_attr("value"):
-            return tag["value"]
+        if not os.path.exists( file_path):
+            open(file_path, "w").close()
         
-        # Method 2: Search in script tags (JSON data)
-        script_tags = soup.find_all("script")
-        for script in script_tags:
-            if name in script.text:
-                match = re.search(rf'"{name}":\s*"([^"]+)"', script.text)
-                if match:
-                    return match.group(1)
-                try:
-                    json_data = json.loads(script.text)
-                    if name in json_data:
-                        return json_data[name]
-                except json.JSONDecodeError:
+        credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+        with open( file_path, "a") as file:
+            file.write(credentials)
+        print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
+        generator = DeviceHeaderGenerator()
+        device_profile = generator.generate_device_profile()
+        
+        first_headers = generator.generate_first_headers(device_profile)
+        second_headers = generator.generate_second_headers(device_profile)
+        
+
+        headers = {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-language": "en-US,en;q=0.9",
+            "cache-control": "max-age=0",
+            "dpr": "1",
+            "priority": "u=0, i",
+            "referer": "https://www.facebook.com/?_rdc=2&_rdr",
+            "sec-ch-prefers-color-scheme": "dark",
+            "sec-ch-ua": '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
+            "sec-ch-ua-full-version-list": '"Not(A:Brand";v="99.0.0.0", "Google Chrome";v="133.0.6943.141", "Chromium";v="133.0.6943.141"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "Windows",
+            "sec-ch-ua-platform-version": "10.0.0",
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "viewport-width": "403"
+        }
+
+        # First request
+        url_1 = "https://www.facebook.com/confirmemail.php?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb"
+        response_1 = session.get(url_1, headers=first_headers)
+
+        html_content = response_1.text  # Your HTML response
+        soup = BeautifulSoup(html_content, "html.parser")
+        def get_value(name):
+            tag = soup.find("input", {"name": name})
+            if tag and tag.has_attr("value"):
+                return tag["value"]
+            
+            # Method 2: Search in script tags (JSON data)
+            script_tags = soup.find_all("script")
+            for script in script_tags:
+                if name in script.text:
+                    match = re.search(rf'"{name}":\s*"([^"]+)"', script.text)
+                    if match:
+                        return match.group(1)
+                    try:
+                        json_data = json.loads(script.text)
+                        if name in json_data:
+                            return json_data[name]
+                    except json.JSONDecodeError:
+                        continue
+            
+            # Method 3: Search in the entire HTML as a last resort
+            match = re.search(rf'name="{name}"\s+value="([^"]+)"', html_content)
+            return match.group(1) if match else None
+
+        # Assigning values
+        jazoest = get_value("jazoest")
+        fb_dtsg = get_value("fb_dtsg")
+        hs = get_value("hs")
+        uid = get_value("uid")
+        spin_r = get_value("spin_r")
+        hsi = get_value("hsi")
+        lsd = get_value("lsd")
+        spin_b = get_value("spin_b")
+        spin_t = get_value("spin_t")
+
+        # Printing extracted values
+        print(f"jazoest: {jazoest}")
+        print(f"fb_dtsg: {fb_dtsg}")
+        print(f"hs: {hs}")
+        print(f"uid: {uid}")
+        print(f"spin_r: {spin_r}")
+        print(f"hsi: {hsi}")
+        print(f"lsd: {lsd}")
+        print(f"spin_b: {spin_b}")
+        print(f"spin_t: {spin_t}")
+
+        url = f"https://www.facebook.com/confirm_code/dialog/submit/?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb&cp={email}&from_cliff=1&conf_surface=hard_cliff&event_location=cliff"
+        headers = {
+            "content-length": "551",
+            "sec-ch-ua-full-version-list": "",
+            "sec-ch-ua-platform": "\"Android\"",
+            "sec-ch-ua": "\"Not A(Brand\";v=\"8\", \"Chromium\";v=\"132\", \"Android WebView\";v=\"132\"",
+            "sec-ch-ua-model": "",
+            "sec-ch-ua-mobile": "?1",
+            "x-asbd-id": "129477",
+            "x-fb-lsd": lsd,
+            "sec-ch-prefers-color-scheme": "dark",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "content-type": "application/x-www-form-urlencoded",
+            "sec-ch-ua-platform-version": "",
+            "accept": "/",
+            "origin": "https://www.facebook.com",
+            "x-requested-with": "mark.via.gp",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://www.facebook.com/confirmemail.php?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb",
+            "accept-encoding": "gzip, deflate",
+            "accept-language": "en-US,en;q=0.9",
+            "priority": "u=1, i"
+        }
+
+        data = {
+            "jazoest": jazoest,
+            "fb_dtsg": fb_dtsg,
+            "code": confirmation_code,
+            "source_verified": "www_reg",
+            "confirm": "1",
+            "__user": uid,
+            "__a": "1",
+            "__req": "5",
+            "__hs": hs,
+            "dpr": "3",
+            "__ccg": "EXCELLENT",
+            "__rev": spin_r,
+            "__s": "5qzil3:fcnekv:jdje7k",
+            "__hsi": hsi,
+            "__dyn": "7xeUmBwjbg7ebwKBAg5S3G2O5U4e1Fx-ewSwMxW0DUS2S0im4E9ohwem0nCq1ew8y11wdu0FE5-2G1Qw5Mx61vwnE2PwBgao6C0lW0H83bwdq1iwmE2ewnE2Lwg81soGdw46wbS1Lwqo1wU1UU7u1rwea",
+            "__csr": "",
+            "lsd": lsd,
+            "__spin_r": spin_r,
+            "__spin_b": spin_b,
+            "__spin_t": spin_t
+        }
+        for attempt in range(10):
+            try:
+                response = session.post(url, headers=second_headers, data=data, timeout=20)
+                # Save response to a randomly named HTML file
+                filename = random_filename()
+                with open(filename, "w", encoding="utf-8") as file:
+                    file.write(response.text)
+
+                print(f"First response saved to {filename}")
+                if response.status_code != 200:
+                    print(f" OTP submission failed. Status code: {response.status_code}")
+                    time.sleep(3)
                     continue
-        
-        # Method 3: Search in the entire HTML as a last resort
-        match = re.search(rf'name="{name}"\s+value="([^"]+)"', html_content)
-        return match.group(1) if match else None
-
-    # Assigning values
-    jazoest = get_value("jazoest")
-    fb_dtsg = get_value("fb_dtsg")
-    hs = get_value("hs")
-    uid = get_value("uid")
-    spin_r = get_value("spin_r")
-    hsi = get_value("hsi")
-    lsd = get_value("lsd")
-    spin_b = get_value("spin_b")
-    spin_t = get_value("spin_t")
-
-    # Printing extracted values
-    print(f"jazoest: {jazoest}")
-    print(f"fb_dtsg: {fb_dtsg}")
-    print(f"hs: {hs}")
-    print(f"uid: {uid}")
-    print(f"spin_r: {spin_r}")
-    print(f"hsi: {hsi}")
-    print(f"lsd: {lsd}")
-    print(f"spin_b: {spin_b}")
-    print(f"spin_t: {spin_t}")
-
-    url = f"https://www.facebook.com/confirm_code/dialog/submit/?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb&cp={email}&from_cliff=1&conf_surface=hard_cliff&event_location=cliff"
-    headers = {
-        "content-length": "551",
-        "sec-ch-ua-full-version-list": "",
-        "sec-ch-ua-platform": "\"Android\"",
-        "sec-ch-ua": "\"Not A(Brand\";v=\"8\", \"Chromium\";v=\"132\", \"Android WebView\";v=\"132\"",
-        "sec-ch-ua-model": "",
-        "sec-ch-ua-mobile": "?1",
-        "x-asbd-id": "129477",
-        "x-fb-lsd": lsd,
-        "sec-ch-prefers-color-scheme": "dark",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "content-type": "application/x-www-form-urlencoded",
-        "sec-ch-ua-platform-version": "",
-        "accept": "/",
-        "origin": "https://www.facebook.com",
-        "x-requested-with": "mark.via.gp",
-        "sec-fetch-site": "same-origin",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-dest": "empty",
-        "referer": "https://www.facebook.com/confirmemail.php?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb",
-        "accept-encoding": "gzip, deflate",
-        "accept-language": "en-US,en;q=0.9",
-        "priority": "u=1, i"
-    }
-
-    data = {
-        "jazoest": jazoest,
-        "fb_dtsg": fb_dtsg,
-        "code": confirmation_code,
-        "source_verified": "www_reg",
-        "confirm": "1",
-        "__user": uid,
-        "__a": "1",
-        "__req": "5",
-        "__hs": hs,
-        "dpr": "3",
-        "__ccg": "EXCELLENT",
-        "__rev": spin_r,
-        "__s": "5qzil3:fcnekv:jdje7k",
-        "__hsi": hsi,
-        "__dyn": "7xeUmBwjbg7ebwKBAg5S3G2O5U4e1Fx-ewSwMxW0DUS2S0im4E9ohwem0nCq1ew8y11wdu0FE5-2G1Qw5Mx61vwnE2PwBgao6C0lW0H83bwdq1iwmE2ewnE2Lwg81soGdw46wbS1Lwqo1wU1UU7u1rwea",
-        "__csr": "",
-        "lsd": lsd,
-        "__spin_r": spin_r,
-        "__spin_b": spin_b,
-        "__spin_t": spin_t
-    }
-    for attempt in range(10):
-        try:
-            response = session.post(url, headers=second_headers, data=data, timeout=20)
-            # Save response to a randomly named HTML file
-            filename = random_filename()
-            with open(filename, "w", encoding="utf-8") as file:
-                file.write(response.text)
-
-            print(f"First response saved to {filename}")
-            if response.status_code != 200:
-                print(f" OTP submission failed. Status code: {response.status_code}")
+                if response.status_code == 200:
+                    print("done")
+                    break
+            except requests.RequestException as e:
                 time.sleep(3)
                 continue
-            if response.status_code == 200:
-                print("done")
-                break
-        except requests.RequestException as e:
-            time.sleep(3)
-            continue
     return
 
 
 if __name__ == "__main__":
     try:
         print("\n===== 33Mail Account Creator =====\n")
-        
+        browser=create_chrome_instance()
+        browser.implicitly_wait(60)
         while True:
             try:
              #   max_create = int(input("[?] How many addresses to create? (1-10, 0=exit): "))
@@ -543,8 +580,9 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                      
-                        create_fbunconfirmed()
+                        browser.get("https://temporarymail.com/en/")
+                        create_fbunconfirmed(browser)
+                        browser.delete_all_cookies()
                     print("\n[+] Batch creation completed")
                 else:
                     print("[-] Invalid input (1-10 only)")
