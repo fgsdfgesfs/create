@@ -7,11 +7,10 @@ import random
 
 # Define variables
 
-email =input("email: ")
-otp = input("otp: ")
-uid = input("uid: ")
-cookies_dict = input("cookies: ")  # User enters JSON-like string
-cookies = json.loads(cookies_dict)  # Convert to dictionary
+email ="AstaValentinoqjwkc@xander.protonsemail.com"
+otp = "14482"
+uid ="61573870948550"
+cookies = {"datr": "TcDGZ9c2IIYF3ccJCg3MWRAL", "fr": "07IBty6jhnXgZBxXW.AWVcgBz0mpB_9b8lETK1-NRB5mdvN4mEmlliLw.BnxsBN..AAA.0.0.BnxsBP.AWXtMQYFGuc", "c_user": "61573870948550", "sb": "T8DGZ5woyyxars4B91_tTKvC", "xs": "6%3ALzbOBgU0A4NWrg%3A2%3A1741078618%3A-1%3A-1"}
 
 # Step 1: Perform the GET request
 get_url = "https://m.facebook.com/confirmemail.php?next=https%3A%2F%2Fm.facebook.com%2F%3Fdeoia%3D1&soft=hjk"
@@ -48,7 +47,7 @@ lsd = extract_value(r'\["LSD", \[\], \{"token": "(.*?)"\]', html_content)
 
 # Extract jazoest
 jazoest = extract_value(r'jazoest", "(\d+)"', html_content)
-
+time.sleep(5)
 # Step 2: Perform the POST request
 post_url = f"https://m.facebook.com/confirmation_cliff/?contact={email}&type=submit&is_soft_cliff=false&medium=email&code={otp}"
 
