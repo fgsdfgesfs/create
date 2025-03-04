@@ -19,7 +19,7 @@ from selenium.webdriver.common.by import By
 def create_chrome_instance():
 
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Headless mode for Termux
+  #  options.add_argument("--headless")  # Headless mode for Termux
     options.add_argument("--no-sandbox")  
     options.add_argument("--disable-gpu")  
     options.add_argument("--disable-software-rasterizer")  
@@ -326,9 +326,21 @@ def extract_code(text):
     return matches[0] if matches else None
 
 def create_fbunconfirmed(browser):
-    browser.get("https://temporarymail.com/en/")
+    browser.delete_all_cookies()
+    browser.execute_script("document.cookie.split(';').forEach(function(c) { document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'; });")
+    browser.execute_script("window.localStorage.clear(); window.sessionStorage.clear();")
 
-    email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
+    browser.refresh()
+    browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]')
+    for i in range(3):
+        email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
+        if email:
+            break
+        else:
+            time.sleep(3)
+            continue
+    if not email:
+        return
     print(f"{email}||")
     print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
@@ -369,7 +381,7 @@ def create_fbunconfirmed(browser):
             "birthday_day": f"{date}",
             "birthday_month": f"{month}",
             "birthday_year": f"{year}",
-            "reg_email__": email,
+            "reg_email__": phone_number,
             "sex": "2",
             "encpass": f"{password}",
             "submit": "Sign Up"
@@ -397,6 +409,24 @@ def create_fbunconfirmed(browser):
         print("account got to checkpoint")
         print("change ip address by turning on aeroplane mode")
         return
+    change_email_url = "https://m.facebook.com/changeemail/"
+    email_response = session.get(change_email_url, headers=headers)
+    soup = BeautifulSoup(email_response.text, "html.parser")
+    form = soup.find("form")
+    
+    if form:
+        print("[*] Found email change form")
+        action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
+        inputs = form.find_all("input")
+        data = {}
+        for inp in inputs:
+            if inp.has_attr("name") and inp["name"] not in data:
+                data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
+        data["new"] = email
+        data["submit"] = "Add"
+        
+        print("[*] Submitting email change request...")
+        submit_response = session.post(action_url, headers=headers, data=data)
     browser.find_element(By.XPATH,'//button[@class="openMessage"]').click()
     code=browser.find_element(By.XPATH,'//h4[contains(text(),"confirmation ")]').text
     confirmation_code=None
@@ -443,7 +473,6 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                        
                         create_fbunconfirmed(browser)
                         browser.delete_all_cookies()
                     print("\n[+] Batch creation completed")
