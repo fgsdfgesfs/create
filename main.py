@@ -1,3 +1,4 @@
+
 from datetime import datetime
 import json
 import os
@@ -10,7 +11,31 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from faker import Faker
-usernamefile = "email_usernames.txt"
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+def create_chrome_instance():
+
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")  # Headless mode for Termux
+    options.add_argument("--no-sandbox")  
+    options.add_argument("--disable-gpu")  
+    options.add_argument("--disable-software-rasterizer")  
+    options.add_argument("--disable-dev-shm-usage")  
+    options.add_argument("--disable-infobars")  
+    options.add_argument("--disable-blink-features=AutomationControlled")  
+    options.add_argument("--window-size=400x640")  # Set window size
+
+    user_agent = "Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    options.add_argument(f"user-agent={user_agent}")
+
+
+    # Initialize Chrome WebDriver
+    driver = webdriver.Chrome(options=options)
+    return driver
+
 import os
 import subprocess
 import json
@@ -21,169 +46,19 @@ import random
 import string
 import bs4
 # Run git pull to update the script
-def update_script():
-    try:
-        print("[*] Checking for updates...", end='\r')
-        result = subprocess.run(["git", "pull"], check=True, capture_output=True, text=True)
-        print("[+] Repository updated successfully: " + result.stdout.replace('\n', ' '))
-    except subprocess.CalledProcessError as e:
-        print("[-] Failed to update repository: " + e.stderr.replace('\n', ' '))
 
-# Update the script before executing anything else
-#update_script()
-
-def get_username(email):
-    """Searches for the username linked to the email."""
-    print(f"[*] Looking up username for {email}...", end='\r')
-    if os.path.exists(usernamefile):
-        with open(usernamefile, "r", encoding="utf-8") as file:
-            for line in file:
-                saved_email, saved_username = line.strip().split("|")
-                if saved_email == email:
-                    print(f"[+] Found username: {saved_username}          ")
-                    return saved_username
-    print("[-] Username not found, using default          ")
-    return "Unknown"
-CREDENTIALS_FILE = os.path.expanduser("~/credentials.txt")
-
-def save_credentials(email, password):
-    """Saves email and password to a file."""
-    print("[*] Saving credentials...", end='\r')
-    with open(CREDENTIALS_FILE, "w", encoding="utf-8") as file:
-        file.write(f"{email}\n{password}")
-    print("[+] Credentials saved successfully          ")
-
-def load_credentials():
-    """Loads saved credentials if they exist."""
-    print("[*] Checking for saved credentials...", end='\r')
-    if os.path.exists(CREDENTIALS_FILE):
-        with open(CREDENTIALS_FILE, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-            if len(lines) == 2:
-                print("[+] Found saved credentials          ")
-                return lines[0].strip(), lines[1].strip()
-    print("[-] No saved credentials found          ")
-    return None, None
-
-def get_credentials():
-    """Handle credential input or retrieval from file."""
-    email_address, password_email = load_credentials()
-
-    if email_address and password_email:
-        print(f"[+] Loaded ProtonMail: {email_address}")
-        choice = input("[?] Use saved credentials? (yes/no): ").strip().lower()
-
-        if choice == "no":
-            print("[*] Deleting old credentials...", end='\r')
-            os.remove(CREDENTIALS_FILE)
-            email_address = input("[?] Enter ProtonMail email: ")
-            password_email = input("[?] Enter ProtonMail password: ")
-            save_credentials(email_address, password_email)
-    else:
-        email_address = input("[?] Enter ProtonMail email: ")
-        password_email = input("[?] Enter ProtonMail password: ")
-        save_credentials(email_address, password_email)
-
-    return email_address, password_email
 import time
 import re
 import requests
 
-EMAIL, PASSWORD = get_credentials()
-
-
-BASE_URL = "https://api.mail.gw"
-def get_token():
-    print("[*] Authenticating with mail server...", end='\r')
-    response = requests.post(f"{BASE_URL}/token", json={"address": EMAIL, "password": PASSWORD})
-    if response.status_code == 200:
-        print("[+] Authentication successful          ")
-        return response.json().get("token")
-    print("[-] Authentication failed          ")
-    return None
-
-def get_latest_email(token):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{BASE_URL}/messages", headers=headers)
-    if response.status_code == 200:
-        messages = response.json().get("hydra:member", [])
-        return messages[0] if messages else None
-    return None
-
-def get_email_content(token, email_id):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{BASE_URL}/messages/{email_id}", headers=headers)
-    if response.status_code == 200:
-        return response.json().get("text")
-    return None
-
-def delete_email(token, email_id):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.delete(f"{BASE_URL}/messages/{email_id}", headers=headers)
-    if response.status_code == 204:
-        print(f"🗑️ Email {email_id} deleted successfully.")
-        return True
-    else:
-        print(f"[-] Failed to delete email {email_id}: {response.text}")
-        return False
-
+def random_filename():
+    return "response_" + "".join(random.choices(string.ascii_letters + string.digits, k=10)) + ".html"
 def extract_code(text):
     # Match "FB-" followed by 4-6 digits, capturing the digits
     pattern = r'FB-(\d{4,6})'
     matches = re.findall(pattern, text)
     # Return the first match (or None if no matches)
     return matches[0] if matches else None
-
-def wait_for_email(timeout=36):
-    token = get_token()
-    if not token:
-        return None
-
-    deleted_emails = set()  # Track deleted emails
-    start_time = time.time()
-    check_count = 0
-
-    while time.time() - start_time < timeout:
-        check_count += 1
-        print(f"[*] Checking for emails ({check_count})...", end='\r')
-        email = get_latest_email(token)
-        
-        if email and email["id"] not in deleted_emails:
-            print(f"[+] New email received (ID: {email['id']})          ")
-            content = get_email_content(token, email["id"])
-            
-            code = extract_code(content) if content else None
-
-            if delete_email(token, email["id"]):  
-                deleted_emails.add(email["id"])
-
-            if code:
-                print(f"[+] Verification code found: {code}")
-                return code
-            else:
-                print("[-] No code found in email, waiting for another...          ")
-
-        time.sleep(6)  # Slightly longer delay to prevent API caching issues
-
-    print("[-] Email timeout reached          ")
-    return None
-
-def delete_all_emails(token):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{BASE_URL}/messages", headers=headers)
-    if response.status_code != 200:
-        print("[-] Failed to fetch emails for deletion.")
-        return
-
-    messages = response.json().get("hydra:member", [])
-    if not messages:
-        print("[*] No emails to delete.")
-        return
-
-    for email in messages:
-        email_id = email.get("id")
-        if email_id:
-            delete_email(token, email_id)
 
 def random_english_firstname():
     print("[*] Generating random name...", end='\r')
@@ -325,13 +200,153 @@ def check_account(fb_id):
 from selenium.common.exceptions import NoSuchElementException
 
 
-def create_fbunconfirmed(usern):
+class DeviceHeaderGenerator:
+    def __init__(self):
+        self.fake = Faker()
+        self.device_profiles = []
+        
+    def generate_device_profile(self):
+        """Create a random device profile with consistent attributes"""
+        profile = {
+            # Device Type (50% chance for mobile)
+            'is_mobile': random.choice([True, False]),
+            
+            # Browser Components
+            'chrome_version': f"{random.randint(120, 140)}.0.{random.randint(1000, 9999)}.{random.randint(100, 999)}",
+            'chromium_version': f"{random.randint(120, 140)}.0.{random.randint(1000, 9999)}.{random.randint(100, 999)}",
+            
+            # Platform Details
+            'os_type': random.choice(['Windows', 'Android', 'Linux', 'iOS']),
+            'os_version': {
+                'Windows': f"{random.randint(10, 11)}.0",
+                'Android': f"{random.randint(10, 14)}.0.0",
+                'Linux': "X11",
+                'iOS': f"{random.randint(15, 17)}.{random.randint(0, 6)}"
+            },
+            
+            # Device Characteristics
+            'viewport_width': str(random.choice([360, 390, 412, 1440])),
+            'dpr': str(round(random.uniform(1.0, 3.5), 1)),
+            
+            # Security Components
+            'lsd_token': ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=24)),
+            'asbd_id': str(random.randint(100000, 999999)),
+        }
+        
+        # Set derived values
+        profile['user_agent'] = self._generate_user_agent(profile)
+        profile['sec_ch_ua'] = self._generate_sec_ch_ua(profile)
+        profile['sec_ch_ua_full_version'] = self._generate_full_version(profile)
+        
+        return profile
+    
+    def _generate_user_agent(self, profile):
+        """Generate consistent User-Agent string"""
+        if profile['os_type'] == 'Windows':
+            return f"Mozilla/5.0 (Windows NT {profile['os_version']['Windows']}; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{profile['chrome_version']} Safari/537.36"
+        elif profile['os_type'] == 'Android':
+            return f"Mozilla/5.0 (Linux; Android {profile['os_version']['Android']}; {self.fake.word().capitalize()}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{profile['chrome_version']} Mobile Safari/537.36"
+        else:
+            return self.fake.user_agent()
+    def _generate_sec_ch_ua(self, profile):
+        """Generate sec-ch-ua header value with correct brand formatting"""
+        base = [
+            # Fixed brand string from "Not%A.Brand" to "Not(A:Brand"
+            f'"Not(A:Brand";v="99"',
+            f'"Chromium";v="{profile["chromium_version"].split(".")[0]}"',
+            f'"Google Chrome";v="{profile["chrome_version"].split(".")[0]}"'
+        ]
+        if profile['os_type'] == 'Android':
+            base.append('"Android WebView";v="132"')
+        return ', '.join(base)
+
+    def _generate_full_version(self, profile):
+        """Generate full version list with consistent brand name"""
+        return ', '.join([
+            # Fixed brand string here too
+            f'"Not(A:Brand";v="{profile["chromium_version"]}"',
+            f'"Google Chrome";v="{profile["chrome_version"]}"',
+            f'"Chromium";v="{profile["chromium_version"]}"'
+        ])
+    def generate_first_headers(self, profile):
+        """Generate headers for initial request"""
+        return {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-language": "en-US,en;q=0.9",
+            "cache-control": "max-age=0",
+            "dpr": profile['dpr'],
+            "priority": "u=0, i",
+            "referer": "https://www.facebook.com/?_rdc=2&_rdr",
+            "sec-ch-prefers-color-scheme": random.choice(["light", "dark"]),
+            "sec-ch-ua": profile['sec_ch_ua'],
+            "sec-ch-ua-full-version-list": profile['sec_ch_ua_full_version'],
+            "sec-ch-ua-mobile": "?1" if profile['is_mobile'] else "?0",
+            "sec-ch-ua-platform": f'"{profile["os_type"]}"',
+            "sec-ch-ua-platform-version": f'"{profile["os_version"][profile["os_type"]]}"',
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1",
+            "user-agent": profile['user_agent'],
+            "viewport-width": profile['viewport_width']
+        }
+    
+    def generate_second_headers(self, profile):
+        """Generate headers for subsequent request"""
+        return {
+            "content-length": "551",
+            "sec-ch-ua-full-version-list": "",
+            "sec-ch-ua-platform": f'"{profile["os_type"]}"',
+            "sec-ch-ua": profile['sec_ch_ua'],
+            "sec-ch-ua-model": "",
+            "sec-ch-ua-mobile": "?1" if profile['is_mobile'] else "?0",
+            "x-asbd-id": profile['asbd_id'],
+            "x-fb-lsd": profile['lsd_token'],
+            "sec-ch-prefers-color-scheme": random.choice(["light", "dark"]),
+            "user-agent": profile['user_agent'],
+            "content-type": "application/x-www-form-urlencoded",
+            "sec-ch-ua-platform-version": "",
+            "accept": "/",
+            "origin": "https://www.facebook.com",
+            "x-requested-with": "mark.via.gp",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://www.facebook.com/confirmemail.php?next=https%3A%2F%2Fwww.facebook.com%2F%3Fsk%3Dwelcome%26lsrc%3Dlb",
+            "accept-encoding": "gzip, deflate",
+            "accept-language": "en-US,en;q=0.9",
+            "priority": "u=1, i"
+        }
+def extract_code(text):
+    # Match "FB-" followed by 4-6 digits, capturing the digits
+    pattern = r'FB-(\d{4,6})'
+    matches = re.findall(pattern, text)
+    # Return the first match (or None if no matches)
+    return matches[0] if matches else None
+
+def create_fbunconfirmed(browser):
+    browser.delete_all_cookies()
+    browser.execute_script("document.cookie.split(';').forEach(function(c) { document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'; });")
+    browser.execute_script("window.localStorage.clear(); window.sessionStorage.clear();")
+
+    browser.refresh()
+    browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]')
+    for i in range(3):
+        email=browser.find_element(By.XPATH,'//input[@aria-label="Your temporary email address"]').text
+        if email:
+            break
+        else:
+            time.sleep(3)
+            continue
+    if not email:
+        return
+    print(f"{email}||")
     print(f"\n[+] Starting fb creation process ")
     asdf = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
     ua = generate_old_android_ua()
     fn, ln, date, year, month, phone_number, password = generate_user_details()
-    username=fn+ln+asdf
-    print(f"[*] Generated username: {username}")
+
     url = "https://m.facebook.com/reg/?is_two_steps_login=0&cid=103&refsrc=deprecated&soft=hjk"
 
     headers = {
@@ -366,7 +381,7 @@ def create_fbunconfirmed(usern):
             "birthday_day": f"{date}",
             "birthday_month": f"{month}",
             "birthday_year": f"{year}",
-            "reg_email__": f"{phone_number}",
+            "reg_email__": phone_number,
             "sex": "2",
             "encpass": f"{password}",
             "submit": "Sign Up"
@@ -394,65 +409,63 @@ def create_fbunconfirmed(usern):
         print("account got to checkpoint")
         print("change ip address by turning on aeroplane mode")
         return
-    print("[*] Attempting email change...")
-    token = get_token()
-    if token:
-        delete_all_emails(token)
-    for i in range(2):
-        change_email_url = "https://m.facebook.com/changeemail/"
-        email_response = session.get(change_email_url, headers=headers)
-        soup = BeautifulSoup(email_response.text, "html.parser")
-        form = soup.find("form")
-        
-        if form:
-            print("[*] Found email change form")
-            action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
-            inputs = form.find_all("input")
-            data = {}
-            for inp in inputs:
-                if inp.has_attr("name") and inp["name"] not in data:
-                    data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
-            data["new"] = f"{username}@{usern}.protonsemail.com"
-            data["submit"] = "Add"
-            
-            print("[*] Submitting email change request...")
-            submit_response = session.post(action_url, headers=headers, data=data)
-            print("[*] Waiting for confirmation email...")
-            confirmation_code = wait_for_email()
-            
-            if not confirmation_code:
-                print("[-] No confirmation code received          ")
-                continue
-            
-            if confirmation_code:
-                print(f"[+] Account created: {uid}|{password}")
-                ccookies=json.dumps(session.cookies.get_dict())
-                email=f"{username}@{usern}.protonsemail.com"
-                storage_dir = "/sdcard"
-                file_path = os.path.join(storage_dir, "unconfirmed_accounts.txt")
-
-                if not os.path.exists( file_path):
-                    open(file_path, "w").close()
-                
-                credentials = f"{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
-
-                with open( file_path, "a") as file:
-                    file.write(credentials)
-                print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
-                break
-        else:
-            print("[-] Email change form not found          ")
+    change_email_url = "https://m.facebook.com/changeemail/"
+    email_response = session.get(change_email_url, headers=headers)
+    soup = BeautifulSoup(email_response.text, "html.parser")
+    form = soup.find("form")
     
+    if form:
+        print("[*] Found email change form")
+        action_url = requests.compat.urljoin(change_email_url, form["action"]) if form.has_attr("action") else change_email_url
+        inputs = form.find_all("input")
+        data = {}
+        for inp in inputs:
+            if inp.has_attr("name") and inp["name"] not in data:
+                data[inp["name"]] = inp["value"] if inp.has_attr("value") else ""
+        data["new"] = email
+        data["submit"] = "Add"
+        
+        print("[*] Submitting email change request...")
+        submit_response = session.post(action_url, headers=headers, data=data)
+    browser.find_element(By.XPATH,'//button[@class="openMessage"]').click()
+    code=browser.find_element(By.XPATH,'//h4[contains(text(),"confirmation ")]').text
+    confirmation_code=None
+    confirmation_code=extract_code(code)
+    browser.delete_all_cookies()
+    print(f"[+] Verification code found: {confirmation_code}")
+    if confirmation_code:
+        statuss=check_account(uid)
+        ccookies=json.dumps(session.cookies.get_dict())
+        storage_dir = "/sdcard"
+        file_path = os.path.join(storage_dir, "confirmed_accounts.txt")
+        uid = session.cookies.get("c_user")
+        if not os.path.exists( file_path):
+            open(file_path, "w").close()
+        if "CP" in statuss:
+            credentials = f"CP|{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+            with open( file_path, "a") as file:
+                file.write(credentials)
+            print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
+        else:
+            credentials = f"OKay|{uid}|{password}|{confirmation_code}|{email}|{ccookies}\n"
+
+            with open( file_path, "a") as file:
+                file.write(credentials)
+            print(f"[+] Saved credentials to  unconfirmed_accounts.txt")
     return
 
 
 if __name__ == "__main__":
     try:
         print("\n===== 33Mail Account Creator =====\n")
-        
+        browser=create_chrome_instance()
+        browser.implicitly_wait(60)
+        browser.get("https://temporarymail.com/en/")
         while True:
             try:
-                max_create = int(input("[?] How many addresses to create? (1-10, 0=exit): "))
+             #   max_create = int(input("[?] How many addresses to create? (1-10, 0=exit): "))
+                max_create=10
                 if max_create == 0:
                     print("[+] Exiting...")
                     break
@@ -460,8 +473,8 @@ if __name__ == "__main__":
                     print(f"[*] Starting creation of {max_create} accounts")
                     for i in range(max_create):
                         print(f"\n=== Account {i+1}/{max_create} ===")
-                        usern =get_username(EMAIL)
-                        create_fbunconfirmed(usern)
+                        create_fbunconfirmed(browser)
+                        browser.delete_all_cookies()
                     print("\n[+] Batch creation completed")
                 else:
                     print("[-] Invalid input (1-10 only)")
@@ -470,5 +483,7 @@ if __name__ == "__main__":
     except :
         print("\n[!] Interrupted by user")
     finally:
+        if browser:
+            browser.quit()
         print("[+] Clean exit")
         exit()
